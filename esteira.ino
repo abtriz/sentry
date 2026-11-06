@@ -154,8 +154,7 @@ void lerSensor() {
   }
 }
 
-// O IP e o motivo da queda agora sao impressos pelos eventos do Wi-Fi (no setup).
-// Aqui so tentamos reconectar, no maximo a cada 10 s.
+
 void verificarWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   if (millis() - ultimoCheckWifi > 10000) {
@@ -184,7 +183,6 @@ void rotaStatus() {
 
 void responderOk() { rotaStatus(); }
 
-// ---------- Pagina web ----------
 void rotaPagina() {
   File file = SPIFFS.open("/index.html", "r");
   if (!file) {
@@ -195,7 +193,6 @@ void rotaPagina() {
   file.close();
 }
 
-// ---------- Rotas de controle ----------
 void rotaLigar()    { religar();     responderOk(); }
 void rotaParar()    { pararManual(); responderOk(); }
 void rotaZerar()    { contagem = 0; paradasSeguranca = 0; responderOk(); }
