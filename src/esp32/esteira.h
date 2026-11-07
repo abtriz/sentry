@@ -2,11 +2,13 @@
 
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
+#include <Preferences.h>
 #include "config.h"
 
 enum Estado { OPERANDO, PARADA_SEGURANCA, PARADO_MANUAL };
 
 Adafruit_VL53L0X lox;
+Preferences memoria;
 
 Estado estado = PARADO_MANUAL;
 unsigned long contagem = 0;
@@ -18,6 +20,24 @@ bool pecaPresente = false;
 int  cntPerto = 0, cntLonge = 0;
 unsigned long inicioPresenca = 0;
 bool sensorOk = false;
+bool contagemAlterada = false;
+unsigned long ultimoSalvamento = 0;
+
+void carregarContagem() {
+  memoria.begin("sentry", false);
+  contagem = memoria.getULong("contagem", 0);
+  paradasSeguranca = memoria.getULong("paradas", 0);
+  Serial.printf("[INFO] Contagem recuperada: %lu pecas, %lu paradas\n", contagem, paradasSeguranca);
+}
+
+void salvarContagem(bool agora = false) {
+  if (!contagemAlterada) return;
+  if (!agora && millis() - ultimoSalvamento < INTERVALO_SALVAMENTO_MS) return;
+  memoria.putULong("contagem", contagem);
+  memoria.putULong("paradas", paradasSeguranca);
+  contagemAlterada = false;
+  ultimoSalvamento = millis();
+}
 
 void pwmIniciar() {
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
@@ -86,13 +106,17 @@ void pararManual() {
 void paradaDeSeguranca() {
   estado = PARADA_SEGURANCA;
   paradasSeguranca++;
+  contagemAlterada = true;
   motorDesligar();
+  salvarContagem(true);
   Serial.println("[ERRO] TRAVAMENTO detectado! Motor desligado pelo rele.");
 }
 
 void zerarContagem() {
   contagem = 0;
   paradasSeguranca = 0;
+  contagemAlterada = true;
+  salvarContagem(true);
   Serial.println("[INFO] Contagem zerada.");
 }
 
@@ -118,6 +142,7 @@ void calibrar() {
 }
 
 void lerSensor() {
+  salvarContagem();
   if (!sensorOk || !lox.isRangeComplete()) return;
   int d = normalizar(lox.readRange());
   ultimaDistancia = d;
@@ -133,6 +158,7 @@ void lerSensor() {
       inicioPresenca = millis();
       if (estado == OPERANDO) {
         contagem++;
+        contagemAlterada = true;
         Serial.printf("[INFO] Peca #%lu (%d mm)\n", contagem, d);
       }
     }
@@ -155,6 +181,7 @@ void iniciarEsteira() {
   pinMode(PIN_LED, OUTPUT);
   pwmIniciar();
   motorDesligar();
+  carregarContagem();
 
   Wire.begin(PIN_SDA, PIN_SCL);
   sensorOk = lox.begin();
@@ -185,4 +212,24 @@ void imprimirDebug() {
   t = millis();
   Serial.printf("dist=%4d mm | base=%4d | peca=%d | contagem=%lu | %s\n",
                 ultimaDistancia, linhaBase, pecaPresente, contagem, nomeEstado());
+}
+
+#include "esteira.h"
+
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+  Serial.println("\n=== PROJETO SENTRY ===");
+
+  iniciarEsteira();
+
+  if (sensorOk) religar();
+  else Serial.println("[AVISO] Motor mantido desligado (sem sensor).");
+}
+
+void loop() {
+  lerSensor();
+  lerSerial();
+  atualizarLed();
+  imprimirDebug();
 }
