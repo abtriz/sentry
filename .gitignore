@@ -1,1 +1,12 @@
-# arquivos
+src/esp32/esp32_server/secrets.h
+src/esp32/esp32_server/data/
+
+build/
+*.bin
+*.elf
+.pio/
+.vscode/
+
+.DS_Store
+Thumbs.db
+desktop.ini
