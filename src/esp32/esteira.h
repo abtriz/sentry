@@ -213,23 +213,3 @@ void imprimirDebug() {
   Serial.printf("dist=%4d mm | base=%4d | peca=%d | contagem=%lu | %s\n",
                 ultimaDistancia, linhaBase, pecaPresente, contagem, nomeEstado());
 }
-
-#include "esteira.h"
-
-void setup() {
-  Serial.begin(115200);
-  delay(300);
-  Serial.println("\n=== PROJETO SENTRY ===");
-
-  iniciarEsteira();
-
-  if (sensorOk) religar();
-  else Serial.println("[AVISO] Motor mantido desligado (sem sensor).");
-}
-
-void loop() {
-  lerSensor();
-  lerSerial();
-  atualizarLed();
-  imprimirDebug();
-}
